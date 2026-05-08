@@ -1,0 +1,55 @@
+server:
+    port: 8080
+spring:
+    application:
+        name: rag4j
+
+    datasource:
+        url: jdbc:sqlite:./rag4j.db
+        driver-class-name: org.sqlite.JDBC
+        username:
+        password:
+
+#    sql:
+#        init:
+#            mode: always
+#            schema-locations: classpath:schema.sql
+
+langchain4j:
+    open-ai:
+        chat-model:
+            api-key: ${OPENAI_API_KEY}
+            base-url: https://www.dmxapi.cn/v1
+            model-name: deepseek-v4-flash
+            temperature: 0.7
+            timeout: 30s
+        streaming-chat-model:
+            api-key: ${OPENAI_API_KEY}
+            base-url: https://www.dmxapi.cn/v1
+            temperature: 0.5
+            model-name: deepseek-v4-flash
+            timeout: 30s
+        embedding-model:
+            api-key: ${OPENAI_API_KEY}
+            base-url: https://www.dmxapi.cn/v1
+            model-name: text-embedding-3-small
+
+mybatis-plus:
+    mapper-locations: classpath*:/mapper/**/*.xml
+    global-config:
+        db-config:
+            id-type: auto
+    configuration:
+        map-underscore-to-camel-case: true
+
+milvus:
+    host: 192.168.80.152
+    port: 19530
+    username: root
+    password: Milvus
+
+rag4j:
+    upload-dir: ./uploads
+    embedding-dimension: 1536
+    vector-store-mode: milvus
+    vector-store-file: ./vector-store.json
