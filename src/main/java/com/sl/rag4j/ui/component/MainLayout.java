@@ -26,24 +26,25 @@ public class MainLayout extends AppLayout {
     public MainLayout() {
         // 应用标题
         H1 title = new H1("rag4j");
-        title.getStyle().set("font-size", "var(--lumo-font-size-l)").set("margin-left", "30px");
+        title.getStyle().set("font-size", "var(--lumo-font-size-l)").set("margin-left", "30px").set("color","white");
         //返回按钮
         backToKbBtn = new Button("返回知识库", new Icon(VaadinIcon.ARROW_LEFT));
         backToKbBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
         backToKbBtn.addClickListener(e -> UI.getCurrent().navigate("know"));
+        backToKbBtn.getStyle().set("color","white");
         // 注销按钮
         Button logoutButton = new Button("注销", e -> {
             UserInfoHelper.saveUserToSession(null);
             UI.getCurrent().getPage().setLocation("/login");
         });
-        logoutButton.getStyle().set("margin-right","20px");
+        logoutButton.getStyle().set("margin-right","20px").set("color","white");;
         // 导航栏布局
         navbar = new HorizontalLayout(title,backToKbBtn, logoutButton);
         navbar.setWidthFull();
         navbar.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
         navbar.setAlignItems(FlexComponent.Alignment.CENTER);
         navbar.setPadding(false);
-
+        navbar.getStyle().set("background-color","#0665D0");
         addToNavbar(navbar);
     }
 
