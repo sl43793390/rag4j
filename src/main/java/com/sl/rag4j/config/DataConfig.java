@@ -38,13 +38,13 @@ public class DataConfig {
     public UserDetailsService userDetailsService(UserMapper userMapper) {
         return username -> {
             LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
-            wrapper.eq(User::getUsername, username);
+            wrapper.eq(User::getUserName, username);
             User user = userMapper.selectOne(wrapper);
             if (user == null) {
                 throw new UsernameNotFoundException("用户不存在: " + username);
             }
             return org.springframework.security.core.userdetails.User
-                    .withUsername(user.getUsername())
+                    .withUsername(user.getUserName())
                     .password(user.getPassword())
                     .roles(user.getRole())
                     .build();

@@ -88,7 +88,7 @@ public class LoginView extends VerticalLayout {
 
         // 在数据库中查询用户信息
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(User::getUsername, username);
+        wrapper.eq(User::getUserId, username);
         User user = userMapper.selectOne(wrapper);
 
         if (user == null) {

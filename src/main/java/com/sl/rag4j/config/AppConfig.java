@@ -69,10 +69,11 @@ public class AppConfig {
 
         // 检查是否已有admin用户，如果没有则创建默认管理员
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(User::getUsername, "admin");
+        wrapper.eq(User::getUserId, "admin");
         if (userMapper.selectCount(wrapper) == 0) {
             User admin = new User();
-            admin.setUsername("admin");
+            admin.setUserId("admin");
+            admin.setUserName("admin");
             admin.setPassword(SmUtil.sm3("admin"));
             admin.setRole("ADMIN");
             admin.setUserType("ADMIN");
