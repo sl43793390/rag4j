@@ -74,14 +74,16 @@ public class UserMgmtView extends VerticalLayout {
         searchBtn = new Button("搜索");
         addUserBtn = new Button("新增用户");
         Button roleMgmtBtn = new Button("角色管理");
-        
+        Button backToKbBtn = new Button("返回知识库");
+
         searchBtn.addClickListener(e -> searchData());
         addUserBtn.addClickListener(e -> openAddUserDialog());
         addUserBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        
-        roleMgmtBtn.addClickListener(e -> UI.getCurrent().navigate("roles-mgmt"));
 
-        searchLayout.add(searchField, searchBtn, addUserBtn, roleMgmtBtn);
+        roleMgmtBtn.addClickListener(e -> UI.getCurrent().navigate("roles-mgmt"));
+        backToKbBtn.addClickListener(e -> UI.getCurrent().navigate("know"));
+
+        searchLayout.add(searchField, searchBtn, addUserBtn, roleMgmtBtn, backToKbBtn);
         searchLayout.setDefaultVerticalComponentAlignment(Alignment.END);
         searchLayout.setSpacing(true);
         

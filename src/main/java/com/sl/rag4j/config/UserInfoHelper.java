@@ -45,7 +45,7 @@ public class UserInfoHelper {
      */
     public static String getUserIdFromSession() {
         User user = getUserFromSession();
-        return user != null ? user.getUsername() : null;
+        return user != null ? user.getUserName() : null;
     }
 
     /**
@@ -55,7 +55,7 @@ public class UserInfoHelper {
      */
     public static String getUsernameFromSession() {
         User user = getUserFromSession();
-        return user != null ? user.getUsername() : "unknown";
+        return user != null ? user.getUserName() : "unknown";
     }
 
     /**
@@ -66,7 +66,7 @@ public class UserInfoHelper {
      */
     public static void loadAndSaveUser(String username, UserMapper userMapper) {
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(User::getUsername, username);
+        wrapper.eq(User::getUserName, username);
         User user = userMapper.selectOne(wrapper);
         if (user != null) {
             saveUserToSession(user);

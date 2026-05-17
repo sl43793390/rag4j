@@ -71,11 +71,14 @@ public class RolesMgmtView extends VerticalLayout {
         searchBtn = new Button("搜索");
         addRoleBtn = new Button("新增角色");
         
+        Button backToKbBtn = new Button("返回知识库");
+
         searchBtn.addClickListener(e -> searchData());
         addRoleBtn.addClickListener(e -> openAddRoleDialog());
         addRoleBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        
-        searchLayout.add(searchField, searchBtn, addRoleBtn);
+        backToKbBtn.addClickListener(e -> UI.getCurrent().navigate("know"));
+
+        searchLayout.add(searchField, searchBtn, addRoleBtn, backToKbBtn);
         searchLayout.setDefaultVerticalComponentAlignment(Alignment.END);
         searchLayout.setSpacing(true);
         
