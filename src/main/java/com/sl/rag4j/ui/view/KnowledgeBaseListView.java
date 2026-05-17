@@ -242,8 +242,7 @@ public class KnowledgeBaseListView extends VerticalLayout implements BeforeEnter
             }
 
             // 删除关联的文档记录
-            documentMapper.delete(new LambdaQueryWrapper<Document>()
-                    .eq(Document::getKnowledgeBaseId, kb.getId()));
+            documentMapper.delete(new LambdaQueryWrapper<Document>().eq(Document::getKnowledgeBaseId, kb.getId()));
 
             // 删除知识库记录
             kbMapper.deleteById(kb.getId());

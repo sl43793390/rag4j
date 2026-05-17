@@ -12,6 +12,8 @@ import dev.langchain4j.rag.content.retriever.EmbeddingStoreContentRetriever;
 import dev.langchain4j.rag.DefaultRetrievalAugmentor;
 import dev.langchain4j.rag.RetrievalAugmentor;
 import dev.langchain4j.rag.content.Content;
+import dev.langchain4j.rag.query.Query;
+import dev.langchain4j.rag.query.transformer.QueryTransformer;
 import dev.langchain4j.service.AiServices;
 import dev.langchain4j.service.TokenStream;
 import dev.langchain4j.store.embedding.EmbeddingStore;
@@ -21,6 +23,7 @@ import reactor.core.publisher.Flux;
 
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 /**
  * RAG查询服务，实现基于知识库的检索增强生成问答
@@ -37,6 +40,7 @@ public class RagQueryService {
     private final MilvusService milvusService;
     private final KnowledgeBaseMapper knowledgeBaseMapper;
     private final ChatMemoryProvider chatMemoryProvider;
+    private final QueryRewriteService queryRewriteService;
 
     /** 缓存每个知识库对应的RagAssistant实例（同步模式），避免重复构建代理对象 */
     private final ConcurrentHashMap<String, RagAssistant> assistantCache = new ConcurrentHashMap<>();
@@ -52,13 +56,15 @@ public class RagQueryService {
                            EmbeddingModel embeddingModel,
                            MilvusService milvusService,
                            KnowledgeBaseMapper knowledgeBaseMapper,
-                           ChatMemoryProvider chatMemoryProvider) {
+                           ChatMemoryProvider chatMemoryProvider,
+                           QueryRewriteService queryRewriteService) {
         this.chatModel = chatModel;
         this.streamingChatModel = streamingChatModel;
         this.embeddingModel = embeddingModel;
         this.milvusService = milvusService;
         this.knowledgeBaseMapper = knowledgeBaseMapper;
         this.chatMemoryProvider = chatMemoryProvider;
+        this.queryRewriteService = queryRewriteService;
     }
 
     /**
@@ -173,6 +179,7 @@ public class RagQueryService {
      * 根据知识库配置构建检索增强器
      * 使用知识库对应的向量存储（Milvus或InMemory）作为检索源
      * 配置最大返回2个相关结果，最低相似度0.5
+     * 集成查询重写，将用户问题改写为多种表述以提高检索召回率
      */
     private RetrievalAugmentor buildRetrievalAugmentor(KnowledgeBase kb) {
         EmbeddingStore<TextSegment> embeddingStore = milvusService.getEmbeddingStore(kb.getMilvusCollectionName());
@@ -182,7 +189,17 @@ public class RagQueryService {
                 .maxResults(5)
                 .minScore(0.5)
                 .build();
+
+        // 查询转换器：将原始问题重写为多种表述方式
+        QueryTransformer queryTransformer = (query) -> {
+            List<String> variations = queryRewriteService.rewrite(query.text());
+            return variations.stream()
+                    .map(Query::from)
+                    .collect(Collectors.toList());
+        };
+
         return DefaultRetrievalAugmentor.builder()
+                .queryTransformer(queryTransformer)
                 .contentRetriever(contentRetriever)
                 .build();
     }
