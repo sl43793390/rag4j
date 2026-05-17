@@ -1,11 +1,12 @@
 package com.sl.rag4j.ui.view;
 
 import com.sl.rag4j.entity.KnowledgeBase;
+import com.sl.rag4j.entity.Document;
 import com.sl.rag4j.mapper.KnowledgeBaseMapper;
+import com.sl.rag4j.mapper.DocumentMapper;
 import com.sl.rag4j.ragservice.EmbeddingService;
 import com.sl.rag4j.config.UserInfoHelper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -13,19 +14,19 @@ import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.component.page.Page;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.value.ValueChangeMode;
+import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.component.dialog.Dialog;
+import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.router.*;
 import com.sl.rag4j.ui.component.MainLayout;
 import com.sl.rag4j.ui.component.CreateKnowledgeBaseDialog;
 import com.sl.rag4j.ui.component.CreateKnowledgeBaseDialog.Mode;
-import jakarta.annotation.PostConstruct;
 import jakarta.annotation.security.PermitAll;
 
 import java.util.List;
-import java.util.Optional;
-import java.util.stream.Stream;
 
 /**
  * 知识库列表视图，展示所有已创建的知识库
@@ -38,6 +39,7 @@ import java.util.stream.Stream;
 public class KnowledgeBaseListView extends VerticalLayout implements BeforeEnterObserver {
 
     private final KnowledgeBaseMapper kbMapper;
+    private final DocumentMapper documentMapper;
     private final EmbeddingService embeddingService;
     private TextField searchField;
     private final Grid<KnowledgeBase> grid;
@@ -45,8 +47,9 @@ public class KnowledgeBaseListView extends VerticalLayout implements BeforeEnter
     /**
      * 构造知识库列表视图，创建搜索栏和知识库表格
      */
-    public KnowledgeBaseListView(KnowledgeBaseMapper kbMapper, EmbeddingService embeddingService) {
+    public KnowledgeBaseListView(KnowledgeBaseMapper kbMapper, DocumentMapper documentMapper, EmbeddingService embeddingService) {
         this.kbMapper = kbMapper;
+        this.documentMapper = documentMapper;
         this.embeddingService = embeddingService;
         setSizeFull();
 
@@ -84,7 +87,12 @@ public class KnowledgeBaseListView extends VerticalLayout implements BeforeEnter
         Button createBtn = new Button("新建知识库", e -> openCreateDialog());
         createBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
-        topBar.add(searchField, searchBtn, createBtn);
+        // 用户管理图标按钮
+        Button userMgmtBtn = new Button("用户管理",VaadinIcon.USER.create());
+        userMgmtBtn.addClickListener(e -> UI.getCurrent().navigate("user-mgmt"));
+        userMgmtBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
+
+        topBar.add(searchField, searchBtn, createBtn, userMgmtBtn);
         topBar.setFlexGrow(1, searchField);
 
         return topBar;
@@ -107,6 +115,13 @@ public class KnowledgeBaseListView extends VerticalLayout implements BeforeEnter
         // 文档数列
         grid.addColumn(kb -> kb.getDocCount() != null ? kb.getDocCount() : 0).setHeader("文档数");
 
+        // 文档详情按钮列：点击后打开文档详情对话框
+        grid.addComponentColumn(kb -> {
+            Button detailBtn = new Button("详情", e -> openDocumentDetailDialog(kb));
+            detailBtn.addThemeVariants(ButtonVariant.LUMO_SMALL);
+            return detailBtn;
+        }).setHeader("文档详情");
+
         // 查询按钮列：点击后导航到查询对话页面
         grid.addComponentColumn(kb -> {
             Button queryBtn = new Button("查询", e -> navigateToQuery(kb.getId()));
@@ -120,6 +135,13 @@ public class KnowledgeBaseListView extends VerticalLayout implements BeforeEnter
             editBtn.addThemeVariants(ButtonVariant.LUMO_SMALL);
             return editBtn;
         }).setHeader("编辑");
+
+        // 删除按钮列：点击后弹出确认对话框，删除知识库及其所有文档和向量数据
+        grid.addComponentColumn(kb -> {
+            Button deleteBtn = new Button("删除", e -> openDeleteConfirmDialog(kb));
+            deleteBtn.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_ERROR);
+            return deleteBtn;
+        }).setHeader("删除");
 
         return grid;
     }
@@ -166,6 +188,109 @@ public class KnowledgeBaseListView extends VerticalLayout implements BeforeEnter
                 refreshGrid();
             }
         });
+    }
+
+    /**
+     * 打开删除确认对话框，提示用户此操作不可撤销
+     * 用户确认后执行删除操作，删除知识库记录、关联文档及Milvus向量集合
+     */
+    private void openDeleteConfirmDialog(KnowledgeBase kb) {
+        Dialog dialog = new Dialog();
+        dialog.setWidth("450px");
+        dialog.setHeaderTitle("确认删除");
+
+        VerticalLayout content = new VerticalLayout();
+        content.setPadding(false);
+        content.setSpacing(true);
+        content.add(new com.vaadin.flow.component.html.Span("您即将删除知识库："));
+        com.vaadin.flow.component.html.Span nameSpan = new com.vaadin.flow.component.html.Span("\"" + kb.getName() + "\"");
+        nameSpan.getStyle().set("font-weight", "bold");
+        content.add(nameSpan);
+        com.vaadin.flow.component.html.Span warning = new com.vaadin.flow.component.html.Span("此操作不可撤销，知识库内的所有文档和向量数据将被永久删除。");
+        warning.getStyle().set("color", "var(--lumo-error-color)");
+        content.add(warning);
+
+        dialog.add(content);
+
+        HorizontalLayout footer = new HorizontalLayout();
+        footer.setPadding(true);
+        Button cancelBtn = new Button("取消", e -> dialog.close());
+        Button confirmBtn = new Button("删除", e -> {
+            deleteKnowledgeBase(kb);
+            dialog.close();
+        });
+        confirmBtn.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_PRIMARY);
+        footer.add(cancelBtn, confirmBtn);
+        dialog.getFooter().add(footer);
+
+        dialog.open();
+    }
+
+    /**
+     * 执行知识库删除逻辑
+     * 1. 删除Milvus中的向量集合（如果存在）
+     * 2. 删除关联的文档记录
+     * 3. 删除知识库记录
+     * 4. 刷新列表并显示成功提示
+     */
+    private void deleteKnowledgeBase(KnowledgeBase kb) {
+        try {
+            // 删除Milvus向量集合
+            String collectionName = kb.getMilvusCollectionName();
+            if (collectionName != null && !collectionName.isBlank()) {
+                embeddingService.deleteCollection(collectionName);
+            }
+
+            // 删除关联的文档记录
+            documentMapper.delete(new LambdaQueryWrapper<Document>()
+                    .eq(Document::getKnowledgeBaseId, kb.getId()));
+
+            // 删除知识库记录
+            kbMapper.deleteById(kb.getId());
+
+            // 刷新列表
+            refreshGrid();
+
+            // 显示成功提示
+            Notification notification = Notification.show("知识库 \"" + kb.getName() + "\" 已成功删除");
+            notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+        } catch (Exception e) {
+            // 显示失败提示
+            Notification notification = Notification.show("删除知识库失败: " + e.getMessage());
+            notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+        }
+    }
+
+    /**
+     * 打开文档详情对话框，显示该知识库下的所有文档列表
+     * 包含文件名、上传时间、分块数量、文件大小等信息
+     */
+    private void openDocumentDetailDialog(KnowledgeBase kb) {
+        Dialog dialog = new Dialog();
+        dialog.setWidth("850px");
+        dialog.setHeight("700px");
+        dialog.setHeaderTitle("文档详情 - " + kb.getName());
+
+        Grid<Document> docGrid = new Grid<>(Document.class, false);
+        docGrid.setSizeFull();
+        docGrid.addColumn(Document::getFileName).setHeader("文件名").setSortable(true).setResizable(true).setAutoWidth(true);
+        docGrid.addColumn(Document::getFileType).setHeader("文件类型");
+        docGrid.addColumn(Document::getChunkCount).setHeader("分块数");
+        docGrid.addColumn(Document::getFileSize).setHeader("文件大小");
+        docGrid.addColumn(Document::getCreatedAt).setHeader("上传时间").setSortable(true).setResizable(true).setAutoWidth(true);
+
+        // 查询该知识库下的所有文档
+        List<Document> docs = documentMapper.selectList(
+                new LambdaQueryWrapper<Document>()
+                        .eq(Document::getKnowledgeBaseId, kb.getId())
+                        .orderByDesc(Document::getCreatedAt)
+        );
+        docGrid.setItems(docs);
+
+        dialog.add(docGrid);
+        Button closeBtn = new Button("关闭", e -> dialog.close());
+        dialog.getFooter().add(closeBtn);
+        dialog.open();
     }
 
     /**
