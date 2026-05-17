@@ -9,6 +9,7 @@ import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -47,7 +48,7 @@ public class EmbeddingService {
      * @param fileName 文件名
      * @param inputStream 文件内容输入流
      */
-    public void ingestDocument(Long kbId, String fileName, java.io.InputStream inputStream) {
+    public void ingestDocument(Long kbId, String fileName, long fileLength,java.io.InputStream inputStream) {
         KnowledgeBase kb = knowledgeBaseMapper.selectById(kbId);
         String collectionName = kb.getMilvusCollectionName();
 
@@ -76,6 +77,15 @@ public class EmbeddingService {
         docRecord.setFileName(fileName);
         docRecord.setFileType(getExtension(fileName));
         docRecord.setChunkCount(segments.size());
+        docRecord.setCreatedAt(LocalDateTime.now().toString());
+        double len = (double) fileLength / 1024;
+        if (len < 1024) {
+            docRecord.setFileSize(String.format("%.1f KB", len));
+        } else if (len < 1024 * 1024) {
+            docRecord.setFileSize(String.format("%.2f MB", len / 1024));
+        } else {
+            docRecord.setFileSize(String.format("%.2f GB", len / (1024 * 1024)));
+        }
         documentMapper.insert(docRecord);
 
         // 7. 更新知识库文档计数
@@ -92,5 +102,13 @@ public class EmbeddingService {
             return fileName.substring(dotIndex + 1).toLowerCase();
         }
         return "";
+    }
+
+    /**
+     * 删除指定的Milvus向量集合
+     * @param collectionName 集合名称
+     */
+    public void deleteCollection(String collectionName) {
+        milvusService.deleteCollection(collectionName);
     }
 }

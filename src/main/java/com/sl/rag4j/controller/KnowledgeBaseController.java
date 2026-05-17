@@ -87,7 +87,7 @@ public class KnowledgeBaseController {
                                                  @RequestParam("files") MultipartFile[] files) {
         for (MultipartFile file : files) {
             try {
-                embeddingService.ingestDocument(kbId, file.getOriginalFilename(), file.getInputStream());
+                embeddingService.ingestDocument(kbId, file.getOriginalFilename(),file.getSize(), file.getInputStream());
             } catch (IOException e) {
                 return ResponseEntity.badRequest().body("文件处理失败: " + file.getOriginalFilename());
             }

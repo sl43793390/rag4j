@@ -14,6 +14,7 @@ public class Document {
     private String fileType;
     private Integer chunkCount;
     private String createdAt;
+    private String fileSize;
 
     public Document() {}
 
@@ -29,6 +30,14 @@ public class Document {
     public void setChunkCount(Integer chunkCount) { this.chunkCount = chunkCount; }
     public String getCreatedAt() { return createdAt; }
     public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }
+
+    public String getFileSize() {
+        return fileSize;
+    }
+
+    public void setFileSize(String fileSize) {
+        this.fileSize = fileSize;
+    }
 
     @Override
     public String toString() {

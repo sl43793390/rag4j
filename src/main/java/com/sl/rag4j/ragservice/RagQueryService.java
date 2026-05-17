@@ -11,6 +11,7 @@ import dev.langchain4j.rag.content.retriever.ContentRetriever;
 import dev.langchain4j.rag.content.retriever.EmbeddingStoreContentRetriever;
 import dev.langchain4j.rag.DefaultRetrievalAugmentor;
 import dev.langchain4j.rag.RetrievalAugmentor;
+import dev.langchain4j.rag.content.Content;
 import dev.langchain4j.service.AiServices;
 import dev.langchain4j.service.TokenStream;
 import dev.langchain4j.store.embedding.EmbeddingStore;
@@ -18,6 +19,7 @@ import com.sl.rag4j.model.RagAssistant;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -81,6 +83,50 @@ public class RagQueryService {
         });
         return assistant.answer(memoryId, question);
     }
+
+    /**
+     * 带引用来源的同步查询：返回回答文本和检索到的源文档信息
+     * @param kbId 知识库ID
+     * @param memoryId 会话ID
+     * @param question 用户问题
+     * @return 包含回答和源文档的RagResult
+     */
+//    public RagResult queryWithSources(Long kbId, String memoryId, String question) {
+//        KnowledgeBase kb = knowledgeBaseMapper.selectById(kbId);
+//        EmbeddingStore<TextSegment> embeddingStore = milvusService.getEmbeddingStore(kb.getMilvusCollectionName());
+//        ContentRetriever contentRetriever = EmbeddingStoreContentRetriever.builder()
+//                .embeddingStore(embeddingStore)
+//                .embeddingModel(embeddingModel)
+//                .maxResults(5)
+//                .minScore(0.5)
+//                .build();
+//
+//        // 先用问题做向量检索获取源文档
+//        List<Content> contents = contentRetriever.retrieve(
+//                dev.langchain4j.rag.query.Query.from(question));
+//
+//        // 提取源文档的metadata信息（文件名等）
+//        List<String> sourceDocs = contents.stream()
+//                .map(c -> c.textSegment().metadata().getString("file_name"))
+//                .filter(s -> s != null && !s.isBlank())
+//                .distinct()
+//                .toList();
+//
+//        // 使用缓存的助手生成回答
+//        String cacheKey = kbId + "_" + memoryId;
+//        RagAssistant assistant = assistantCache.computeIfAbsent(cacheKey, key -> {
+//            RetrievalAugmentor augmentor = DefaultRetrievalAugmentor.builder()
+//                    .contentRetriever(contentRetriever)
+//                    .build();
+//            return AiServices.builder(RagAssistant.class)
+//                    .chatModel(chatModel)
+//                    .chatMemoryProvider(chatMemoryProvider)
+//                    .retrievalAugmentor(augmentor)
+//                    .build();
+//        });
+//        String answer = assistant.answer(memoryId, question);
+//        return new RagResult(answer, sourceDocs);
+//    }
 
     /**
      * 流式查询（Vaadin UI用）：返回TokenStream对象，通过回调逐步接收回答内容

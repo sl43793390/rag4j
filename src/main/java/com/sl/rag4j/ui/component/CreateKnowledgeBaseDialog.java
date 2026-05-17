@@ -1,5 +1,6 @@
 package com.sl.rag4j.ui.component;
 
+import cn.hutool.core.util.IdUtil;
 import com.sl.rag4j.entity.KnowledgeBase;
 import com.sl.rag4j.mapper.KnowledgeBaseMapper;
 import com.sl.rag4j.model.SplitterType;
@@ -49,9 +50,16 @@ public class CreateKnowledgeBaseDialog extends Dialog {
     /** 编辑模式下的目标知识库实体 */
     private KnowledgeBase editingKb;
 
-    /** 临时存储上传的文件名和内容 */
-    private String uploadedFileName;
-    private byte[] uploadedFileContent;
+    /** 临时存储上传的文件名和内容列表，支持多文件 */
+    private static class UploadedFile {
+        final String fileName;
+        final byte[] content;
+        UploadedFile(String fileName, byte[] content) {
+            this.fileName = fileName;
+            this.content = content;
+        }
+    }
+    private final java.util.List<UploadedFile> uploadedFiles = new java.util.ArrayList<>();
 
     /**
      * 构造创建知识库对话框，通过构造函数接收Spring bean
@@ -100,7 +108,7 @@ public class CreateKnowledgeBaseDialog extends Dialog {
         // 每段最大大小（编辑模式下只读）
         maxSegmentSizeField = new IntegerField("每段最大大小");
         maxSegmentSizeField.setWidthFull();
-        maxSegmentSizeField.setValue(300);
+        maxSegmentSizeField.setValue(500);
         maxSegmentSizeField.setMin(50);
         maxSegmentSizeField.setStep(50);
         maxSegmentSizeField.setReadOnly(mode == Mode.EDIT);
@@ -108,7 +116,7 @@ public class CreateKnowledgeBaseDialog extends Dialog {
         // 相邻段重叠大小（编辑模式下只读）
         maxOverlapSizeField = new IntegerField("重叠大小");
         maxOverlapSizeField.setWidthFull();
-        maxOverlapSizeField.setValue(30);
+        maxOverlapSizeField.setValue(100);
         maxOverlapSizeField.setMin(0);
         maxOverlapSizeField.setStep(10);
         maxOverlapSizeField.setReadOnly(mode == Mode.EDIT);
@@ -129,11 +137,11 @@ public class CreateKnowledgeBaseDialog extends Dialog {
         fileUpload.setAcceptedFileTypes(".pdf", ".doc", ".docx", ".txt", ".md", ".xls", ".xlsx");
         fileUpload.setMaxFileSize(1024 * 1024 * 30);
         fileUpload.setMaxFiles(5);
-        fileUpload.addSucceededListener(e -> {
-            uploadedFileName = e.getFileName();
-            // 读取上传文件内容到字节数组
+        fileUpload.addFinishedListener(e -> {
+            String fName = e.getFileName();
             try {
-                uploadedFileContent = memoryBuffer.getInputStream().readAllBytes();
+                byte[] content = memoryBuffer.getInputStream().readAllBytes();
+                uploadedFiles.add(new UploadedFile(fName, content));
             } catch (Exception ex) {
                 Notification.show("文件读取失败: " + ex.getMessage(), 3000, Notification.Position.MIDDLE);
             }
@@ -176,7 +184,7 @@ public class CreateKnowledgeBaseDialog extends Dialog {
 
         if (mode == Mode.CREATE) {
             // 创建模式：生成Milvus collection名称，插入新记录
-            String collectionName = "kb_" + System.currentTimeMillis();
+            String collectionName = "kb_" + IdUtil.getSnowflakeNextIdStr();
             KnowledgeBase kb = new KnowledgeBase();
             kb.setName(nameField.getValue());
             kb.setDescription(descriptionField.getValue());
@@ -188,10 +196,12 @@ public class CreateKnowledgeBaseDialog extends Dialog {
             kb.setUserName(getCurrentUserId());
             kbMapper.insert(kb);
 
-            // 如果有上传文件，执行嵌入流水线
-            if (uploadedFileName != null && uploadedFileContent != null) {
-                InputStream inputStream = new ByteArrayInputStream(uploadedFileContent);
-                embeddingService.ingestDocument(kb.getId(), uploadedFileName, inputStream);
+            // 如果有上传文件，循环对每个文件执行嵌入流水线
+            if (!uploadedFiles.isEmpty()) {
+                for (UploadedFile uf : uploadedFiles) {
+                    InputStream inputStream = new ByteArrayInputStream(uf.content);
+                    embeddingService.ingestDocument(kb.getId(), uf.fileName, uf.content.length, inputStream);
+                }
             }
             Notification.show("知识库创建成功", 3000, Notification.Position.MIDDLE);
         } else if (mode == Mode.EDIT && editingKb != null) {
@@ -201,9 +211,11 @@ public class CreateKnowledgeBaseDialog extends Dialog {
             kbMapper.updateById(editingKb);
 
             // 如果有上传文件，追加嵌入到已有知识库
-            if (uploadedFileName != null && uploadedFileContent != null) {
-                InputStream inputStream = new ByteArrayInputStream(uploadedFileContent);
-                embeddingService.ingestDocument(editingKb.getId(), uploadedFileName, inputStream);
+            if (!uploadedFiles.isEmpty()) {
+                for (UploadedFile uf : uploadedFiles) {
+                    InputStream inputStream = new ByteArrayInputStream(uf.content);
+                    embeddingService.ingestDocument(editingKb.getId(), uf.fileName, uf.content.length, inputStream);
+                }
             }
             Notification.show("知识库更新成功", 3000, Notification.Position.MIDDLE);
         }

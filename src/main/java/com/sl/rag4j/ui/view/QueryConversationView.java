@@ -8,6 +8,7 @@ import com.sl.rag4j.entity.KnowledgeBase;
 import com.sl.rag4j.mapper.ChatMemoryMapper;
 import com.sl.rag4j.mapper.KnowledgeBaseMapper;
 import com.sl.rag4j.ragservice.RagQueryService;
+import com.sl.rag4j.ragservice.RagResult;
 import com.sl.rag4j.ui.component.MainLayout;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.AttachEvent;
@@ -30,6 +31,7 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.Scroller;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.component.Key;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
@@ -111,7 +113,7 @@ public class QueryConversationView extends VerticalLayout implements BeforeEnter
 
         // 聊天历史列表
         chatHistoryListBox = new ListBox<>();
-        chatHistoryListBox.setWidth("280px");
+        chatHistoryListBox.setWidth("330px");
         chatHistoryListBox.getStyle().set("flex", "1");
         chatHistoryListBox.setRenderer(new ComponentRenderer<>(this::createChatHistoryItem));
         chatHistoryListBox.addValueChangeListener(e -> onChatHistorySelected(e.getValue()));
@@ -139,10 +141,17 @@ public class QueryConversationView extends VerticalLayout implements BeforeEnter
         inputField = new TextField();
         inputField.setPlaceholder("请输入您的问题...");
         inputField.setWidthFull();
+        // 回车发送消息
+        inputField.addKeyPressListener(e -> {
+            if (e.getKey() == Key.ENTER) {
+                sendMessage();
+            }
+        });
 //        inputField.getStyle().set("height","70px");
 
-        sendBtn = new Button("发送", e -> sendMessage());
+        sendBtn = new Button("", e -> sendMessage());
         sendBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        sendBtn.setIcon(VaadinIcon.ARROW_UP.create());
 
         HorizontalLayout inputBar = new HorizontalLayout(inputField, sendBtn);
         inputBar.setWidthFull();
@@ -248,7 +257,7 @@ public class QueryConversationView extends VerticalLayout implements BeforeEnter
      */
     private Div createChatHistoryItem(ChatMemory chatMemory) {
         Div item = new Div();
-        item.getStyle().set("padding", "12px");
+        item.getStyle().set("padding", "12px").set("width","245px");
         item.getStyle().set("cursor", "pointer");
         item.getStyle().set("border-bottom", "1px solid #f0f0f0");
         item.getStyle().set("transition", "background-color 0.2s");
@@ -411,10 +420,16 @@ public class QueryConversationView extends VerticalLayout implements BeforeEnter
         UI ui = getUI().orElse(null);
         if (ui == null) return;
 
-        // 启动流式查询，传入memoryId实现会话记忆
-        String answer = ragQueryService.query(kbId, memoryId, question);
-        responseBuilder.append(answer);
+        // 启动带来源的查询，传入memoryId实现会话记忆
+        String result = ragQueryService.query(kbId, memoryId, question);
+        responseBuilder.append(result);
         aiMessageMarkdown.setContent(responseBuilder.toString());
+
+        // 在AI回复后追加引用文档
+//        if (!result.sourceDocuments().isEmpty()) {
+//            addCitedDocuments(result.sourceDocuments());
+//        }
+
         loadChatHistoryList();
         scrollToBottom();
     }
@@ -560,6 +575,50 @@ public class QueryConversationView extends VerticalLayout implements BeforeEnter
     private void scrollToBottom() {
         chatContainer.getElement().executeJs("setTimeout(function() { this.scrollTop = this.scrollHeight; }, 100);");
     }
+
+    /**
+     * 在聊天区追加引用文档信息，与上一条AI消息气泡绑定在一起显示
+     */
+//    private void addCitedDocuments(List<String> sourceDocuments) {
+//        // 找到最后一个AI消息所在的row容器，将引用信息追加到该容器内
+//        List<Component> children = chatContainer.getChildren().toList();
+//        if (children.isEmpty()) return;
+//
+//        VerticalLayout citedSection = new VerticalLayout();
+//        citedSection.setWidthFull();
+//        citedSection.setSpacing(false);
+//        citedSection.setPadding(false);
+//        citedSection.getStyle().set("margin-left", "52px").set("margin-top", "2px").set("margin-bottom", "8px");
+//
+//        Span label = new Span("引用文档：");
+//        label.getStyle().set("font-size", "12px").set("color", "#888").set("font-weight", "500");
+//        citedSection.add(label);
+//
+//        HorizontalLayout docTags = new HorizontalLayout();
+//        docTags.setSpacing(false);
+//        docTags.setPadding(false);
+//        docTags.setWidthFull();
+//        docTags.getStyle().set("flex-wrap", "wrap");
+//
+//        for (String docName : sourceDocuments) {
+//            Span tag = new Span(docName);
+//            tag.getStyle()
+//                    .set("background", "#e8f5e9")
+//                    .set("border", "1px solid #a5d6a7")
+//                    .set("border-radius", "4px")
+//                    .set("padding", "3px 8px")
+//                    .set("font-size", "12px")
+//                    .set("color", "#2e7d32")
+//                    .set("cursor", "default")
+//                    .set("display", "inline-block")
+//                    .set("margin-right", "6px")
+//                    .set("margin-bottom", "4px");
+//            docTags.add(tag);
+//        }
+//        citedSection.add(docTags);
+//        // 追加到聊天容器，紧跟在AI消息之后
+//        chatContainer.add(citedSection);
+//    }
 
     /**
      * 视图附加时记录，确保UI可用
