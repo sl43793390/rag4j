@@ -72,7 +72,7 @@ src/main/resources/
 - `langchain4j-mcp` — Model Context Protocol support
 - Document loaders: `langchain4j-document-parser-apache-pdfbox`, `langchain4j-document-parser-apache-poi`, `langchain4j-document-loader-tika`, `langchain4j-document-parser-markdown`
 
-### capture
+### screenshots
 
 <img src="images/conversation.png">
 <img src="images/knowledgeMgmt.png">
